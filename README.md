@@ -2,6 +2,69 @@
 Self-Driving Car Engineer Nanodegree Program
 
 ---
+## Objective
+The main objective of this project is to implement a model predictive controller (MPC) to drive a vehicle around the track. 
+
+In the simulator, the reference trajectory is show as a **YELLOW** line and the predicted path is in **GREEN**.
+
+## 1. The Vehicle Model
+We constructing the kinematic model of the vehicle where we neglect all dynamical effects such as inertia, friction and torque. Vehicle model is given by the following equation:
+```python
+      // x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+      // y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+      // psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+      // v_[t+1] = v[t] + a[t] * dt
+      // cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+      // epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
+```
+where,
+`x` ,`y` are position of the vehicle in global co-ordinate system
+`psi` is  heading direction of the vehicle
+`v` velocity
+`cte` cross track error
+`epsi` orientation error
+
+## 2. Timestep Length and Elapsed Duration (N & dt)
+The product of the timestep length `N` and elapsed duration `dt` is called as Prediction Horizon `T`. The number of timesteps in the horizon is denoted by timestep length and time elapses between each actuation is denoted by Elapsed Duration.
+
+The value of N and dt will greatly affect the performance of my system. 
+* In case of large number of way points(`N`), Contoller tends to estimate `N` successive way points for each step. This will slow down my overall process. 
+* I think calculating the vehicle position between 50 to 500 milliseconds is resonable.
+
+I have tried the following combinations of N and dt.
+|N  | dt |
+|---|----|
+|20 |0.1 |
+|15 | 0.1|
+|10 | 0.1|
+|10 | 0.2|
+|10 | 0.05|
+
+From the above experimentation, `N` as 10 and `dt` as 0.1 works well.
+
+## 3. Polynomial Fitting and MPC Preprocessing
+
+The waypoints provided by the simulator are transformed to the car coordinate system in `main.cpp` file. 
+```c++
+// Create a vectorxD space for way_points 
+          Eigen::VectorXd waypoints_x(ptsx.size());
+          Eigen::VectorXd waypoints_y(ptsy.size());
+          
+          // Transform the points to the vehicle's orientation
+          for (int i = 0; i < ptsx.size(); i++) {
+            double x = ptsx[i] - px;
+            double y = ptsy[i] - py;
+            waypoints_x[i] = x * cos(-psi) - y * sin(-psi);
+            waypoints_y[i] = x * sin(-psi) + y * cos(-psi);
+          }
+```
+The a third order polynomial is fitted to the transformed waypoints. The coefficients of the above polynomial is used to calculate the cte and epsi which is used in solver function as well.
+
+## 4. Model Predictive Control with Latency
+
+We calculate the future position of the car by 100 millisecond, assuming there were no changes in the velocity or in the steer angle. We ,then , send the future position of the car as the initial state to componsate for the 100ms latency.
+
+---
 
 ## Dependencies
 
